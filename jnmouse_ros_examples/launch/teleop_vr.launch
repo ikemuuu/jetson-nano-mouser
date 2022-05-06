@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<launch>
+
+  <arg name="width" default="320" />
+  <arg name="height" default="180" />
+
+  <!-- robot control nodes -->
+  <include file="$(find jnmouse_ros_examples)/launch/jnmouse.launch" />
+
+  <!-- HTTP web server -->
+  <include file="$(find roswww)/launch/roswww.launch" />
+
+  <!-- rosbridge server -->
+  <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch" />
+
+  <!-- stream camera image -->
+  <node pkg="web_video_server" type="web_video_server" name="web_video_server" />
+
+  <include file="$(find jetson_nano_csi_cam)/launch/jetson_dual_csi_cam.launch">
+    <arg name="width" value="$(arg width)" />
+    <arg name="height" value="$(arg height)" />
+  </include>
+  <node name="image_republish_l" pkg="image_transport" type="republish" args="raw compressed">
+    <remap from="in" to="/csi_cam_0/image_raw" />
+    <remap from="out" to="/csi_cam_0/image_raw" />
+  </node>
+  <node name="image_republish_r" pkg="image_transport" type="republish" args="raw compressed">
+    <remap from="in" to="/csi_cam_1/image_raw" />
+    <remap from="out" to="/csi_cam_1/image_raw" />
+  </node>
+</launch>

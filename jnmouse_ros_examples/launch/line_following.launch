@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- robot control nodes -->
+  <include file="$(find jnmouse_ros_examples)/launch/jnmouse.launch" />
+
+  <!-- camera node -->
+  <include file="$(find jetson_nano_csi_cam)/launch/jetson_csi_cam.launch" />
+
+  <!-- line following node -->
+  <node pkg="jnmouse_ros_examples" name="line_following" type="line_following.py" required="true" output="screen" />
+</launch>
