@@ -31,13 +31,16 @@ class StereoDepthEstimator:
         self._captured_img_r = None
         self._captured_img_width = 1
         self._captured_img_height = 1
-        self._left_camera_image_topic = "/camera_l/image_rect_color"
-        self._right_camera_image_topic = "/camera_r/image_rect_color"
+        
+        # 2台のカメラからの画像の取得を同時に行う（∵ 画像データを組み合わせて距離を出力するため）
+        self._left_camera_image_topic = "/camera_l/image_rect_color"     # 歪み補正後の画像（左カメラ）
+        self._right_camera_image_topic = "/camera_r/image_rect_color"    # 歪み補正後の画像（右カメラ）
         sub_img_l = message_filters.Subscriber(self._left_camera_image_topic, Image)
         sub_img_r = message_filters.Subscriber(self._right_camera_image_topic, Image)
-        self.mf = message_filters.ApproximateTimeSynchronizer([sub_img_l, sub_img_r], 100, 10.0)
-        self.mf.registerCallback(self._img_callback)
-        self._pub_depth_img = rospy.Publisher("/depth/image_rect", Image, queue_size=1)
+        self.mf = message_filters.ApproximateTimeSynchronizer([sub_img_l, sub_img_r], 100, 10.0)     # 引数は順に，subscriberのリスト，queue_size，同期のズレとして許容する時間[s]
+        self.mf.registerCallback(self._img_callback)                                                 # 同期のズレとして許容する時間[s] 以内の差でpublishされたときのみ，callback関数を呼び出す
+        
+        self._pub_depth_img = rospy.Publisher("/depth/image_rect", Image, queue_size=1)              # depth imageを"/depth/image_rect"という名前でpublish
         self._is_debug = rospy.get_param("~debug")
         self.img_scale = 0.5
 
@@ -70,10 +73,14 @@ class StereoDepthEstimator:
             mode = cv2.STEREO_SGBM_MODE_SGBM_3WAY
         )
 
+    # 画像をsubscribeした際のcallback関数
     def _img_callback(self, img_l, img_r):
         try:
             self._captured_img_height = img_l.height
             self._captured_img_width = img_l.width
+            
+            # sensor_msgs/Image型のtopic(/camera_/image_rect_color) をOpenCVの配列(cv::Mat)に変換
+            # bgr8: CV_8UC3, color image with blue-green-red color order
             self._captured_img_l = self._cv_bridge.imgmsg_to_cv2(img_l, "bgr8")
             self._captured_img_r = self._cv_bridge.imgmsg_to_cv2(img_r, "bgr8")
 
@@ -95,7 +102,10 @@ class StereoDepthEstimator:
         else:
             pass
 
+    # 距離取得用メソッド
     def depth_estimation(self):
+        # 深いコピー
+        # ∵ 処理中に次の画像データ（3次元配列（複合リスト））がsubscribeされても書き換えないため
         org_img_l = copy.deepcopy(self._captured_img_l)
         org_img_r = copy.deepcopy(self._captured_img_r)
 
